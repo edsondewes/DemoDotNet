@@ -1,0 +1,53 @@
+version: '3.7'
+
+services:
+  calculos-api:
+    build:
+      context: ./src/calculos/
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/hc"]
+      interval: 5s
+    image: edsondewes/demodotnet:calculos-api
+    environment:
+      TaxasClient__BaseAddress: http://taxas-api/
+    labels:
+      - "traefik.backend=calculos-api"
+      - "traefik.frontend.rule=PathPrefixStrip:/calculos"
+      - "traefik.port=80"
+
+  taxas-api:
+    build:
+      context: ./src/taxas/
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/hc"]
+      interval: 5s
+    image: edsondewes/demodotnet:taxas-api
+    labels:
+      - "traefik.backend=taxas-api"
+      - "traefik.frontend.rule=PathPrefixStrip:/taxas"
+      - "traefik.port=80"
+
+  swagger:
+    build:
+      context: ./src/SwaggerDocs/
+    image: edsondewes/demodotnet:swagger
+    environment:
+      Swagger__Endpoints__0__Nome: "Calculos API v1"
+      Swagger__Endpoints__0__Url: "/calculos/swagger/v1/swagger.json"
+      Swagger__Endpoints__1__Nome: "Taxas API v1"
+      Swagger__Endpoints__1__Url: "/taxas/swagger/v1/swagger.json"
+    labels:
+      - "traefik.backend=swagger"
+      - "traefik.frontend.rule=PathPrefix:/"
+      - "traefik.port=80"
+    
+  proxy:
+    image: traefik:1.7-alpine
+    labels:
+      - "traefik.enable=false"
+    ports:
+      - "8080:80"
+      - "8081:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - $PWD/traefik.toml:/etc/traefik/traefik.toml
